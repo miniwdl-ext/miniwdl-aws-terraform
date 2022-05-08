@@ -1,15 +1,15 @@
 # miniwdl-aws-terraform
 
-Use this [Terraform](https://www.terraform.io) configuration as a starting point to provision AWS infrastructure for [miniwdl-aws](https://github.com/miniwdl-ext/miniwdl-aws), including a VPC, EFS file system, Batch queues, and IAM roles. Before diving into this, **please note two simpler ways to use miniwdl-aws** described there.
+Use this [Terraform](https://www.terraform.io) configuration as a starting point to provision AWS infrastructure for [miniwdl-aws](https://github.com/miniwdl-ext/miniwdl-aws) -- including a VPC, EFS file system, Batch queues, and IAM roles. **Before diving into this, please note *two* simpler ways to use miniwdl-aws** described there.
 
-Requirements to proceed:
+### Requirements
 
 * AWS account with administrator/poweruser access
 * git, terraform
 * terminal session with [AWS CLI configured](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html) (credentials and default region)
 * miniwdl-aws (`pip3 install miniwdl-aws`)
 
-Deployment:
+### Deploy
 
 ```
 git clone https://github.com/miniwdl-ext/miniwdl-aws-terraform.git
@@ -24,7 +24,9 @@ where
 
 * `environment_tag` fills the Environment tag of each resource, and prefixes some resource names (for identification & deconfliction)
 * `owner_tag` fills the Owner tag of each resource (typically your username/email)
-* `s3upload_buckets` is a list of S3 bucket names where you may ask miniwdl-aws to upload workflow outputs (with `miniwdl-aws-submit --s3upload`)
+* `s3upload_buckets` is a list of S3 bucket names where you may ask miniwdl-aws to upload workflow outputs
+
+### Self-test
 
 The deployment outputs the name of the Batch job queue for workflow jobs, `miniwdl-workflow` (`${environment_tag}-workflow`), which you can plug into the miniwdl-aws self-test:
 
@@ -32,7 +34,7 @@ The deployment outputs the name of the Batch job queue for workflow jobs, `miniw
 miniwdl-aws-submit --self-test --follow --workflow-queue miniwdl-workflow
 ```
 
-Or set the environment variable `MINIWDL__AWS__WORKFLOW_QUEUE=miniwdl-workflow` instead of the `--workflow-queue` command-line option.
+Or, set the environment variable `MINIWDL__AWS__WORKFLOW_QUEUE=miniwdl-workflow` instead of the `--workflow-queue` command-line option.
 
 See [miniwdl-aws](https://github.com/miniwdl-ext/miniwdl-aws) for how to use `miniwdl-aws-submit` further.
 
