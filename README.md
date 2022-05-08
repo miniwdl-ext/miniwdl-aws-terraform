@@ -2,7 +2,7 @@
 
 Use this [Terraform](https://www.terraform.io) configuration as a starting point to provision AWS infrastructure for [miniwdl-aws](https://github.com/miniwdl-ext/miniwdl-aws) -- including a VPC, EFS file system, Batch queues, and IAM roles.
 
-**Before diving into this, please note *two* simpler ways to use miniwdl-aws** described there.
+**Before diving into this, please review two simpler ways to use miniwdl-aws** described [there](https://github.com/miniwdl-ext/miniwdl-aws).
 
 ### Requirements
 
@@ -28,11 +28,11 @@ where
 * `owner_tag` fills the Owner tag of each resource (typically your username/email)
 * `s3upload_buckets` is a list of S3 bucket names where you may ask miniwdl-aws to upload workflow outputs (optional)
 
-If you get an error about service roles already existing, add `-var=create_spot_service_roles=false` (these roles only need to be created once per account).
+If you get an error about service roles already existing, add `-var=create_spot_service_roles=false` (these roles need to be created only once per account).
 
 ### Self-test
 
-The deployment outputs the name of the Batch job queue for workflow jobs, `miniwdl-workflow` (`${environment_tag}-workflow`), which you can plug into the miniwdl-aws self-test:
+The deployment outputs the name of the Batch job queue for submitting workflows, `miniwdl-workflow` (`${environment_tag}-workflow`), which you can supply to the miniwdl-aws self-test:
 
 ```
 miniwdl-aws-submit --self-test --follow --workflow-queue miniwdl-workflow
