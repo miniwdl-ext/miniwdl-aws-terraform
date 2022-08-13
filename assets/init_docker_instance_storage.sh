@@ -1,9 +1,3 @@
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="==MYBOUNDARY=="
-
---==MYBOUNDARY==
-Content-Type: text/x-shellscript; charset="us-ascii"
-
 #!/bin/bash
 # To run on first boot of an EC2 instance with NVMe instance storage volumes:
 # 1) Assembles them into a RAID0 array, formats with XFS, and mounts to /mnt/scratch
@@ -39,4 +33,3 @@ fi
 mkdir -p /mnt/scratch/docker
 ln -s /mnt/scratch/docker /var/lib/docker
 systemctl restart docker || true
---==MYBOUNDARY==--

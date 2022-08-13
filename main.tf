@@ -7,6 +7,8 @@ provider "aws" {
   }
 }
 
+provider "cloudinit" {}
+
 data "aws_availability_zones" "available" {}
 
 /**************************************************************************************************
@@ -101,12 +103,21 @@ resource "aws_iam_instance_profile" "task" {
   role = aws_iam_role.task.name
 }
 
+data "cloudinit_config" "task" {
+  gzip = false
+
+  part {
+    content_type = "text/x-shellscript"
+    content      = file("${path.module}/assets/init_docker_instance_storage.sh")
+  }
+}
+
 resource "aws_launch_template" "task" {
   name = "${var.environment_tag}-task"
   iam_instance_profile {
     name = aws_iam_instance_profile.task.name
   }
-  user_data = filebase64("${path.module}/assets/task_instance_user_data")
+  user_data = data.cloudinit_config.task.rendered
 }
 
 resource "aws_batch_compute_environment" "task" {
