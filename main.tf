@@ -134,6 +134,7 @@ resource "aws_batch_compute_environment" "task" {
     security_group_ids  = [aws_security_group.all.id]
     spot_iam_fleet_role = aws_iam_role.spot_fleet.arn
     instance_role       = aws_iam_instance_profile.task.arn
+    # ^ Terraform requires instance_role even though it seems redundant with launch template
 
     launch_template {
       launch_template_id = aws_launch_template.task.id
@@ -218,10 +219,10 @@ resource "aws_iam_role" "workflow" {
   # "FullAccess".
   managed_policy_arns = [
     "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
-    "arn:aws:iam::aws:policy/AWSBatchFullAccess",
     "arn:aws:iam::aws:policy/AmazonElasticFileSystemClientFullAccess",
     "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
     "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
+    "arn:aws:iam::aws:policy/AWSBatchFullAccess",
   ]
 
   # permissions for --s3upload
@@ -232,16 +233,10 @@ resource "aws_iam_role" "workflow" {
       name = "${var.environment_tag}-workflow-s3upload"
       policy = jsonencode({
         Version = "2012-10-17",
-        Statement = [
-          {
-            Effect   = "Allow",
-            Action   = ["s3:ListBucket"],
-            Resource = formatlist("arn:aws:s3:::%s", var.s3upload_buckets),
-          },
-          {
-            Effect   = "Allow",
-            Action   = ["s3:GetObject", "s3:PutObject"],
-            Resource = formatlist("arn:aws:s3:::%s/*", var.s3upload_buckets),
+        Statement = [{
+          Effect   = "Allow",
+          Action   = ["s3:PutObject"],
+          Resource = formatlist("arn:aws:s3:::%s/*", var.s3upload_buckets),
           },
         ],
       })
