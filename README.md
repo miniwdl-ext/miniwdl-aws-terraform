@@ -51,7 +51,7 @@ The following Terraform variables are also available:
 
 Review the network configuration and IAM policies in [main.tf](main.tf). To keep the configuration succinct, we wrote in simple networking with public subnets, and existing IAM policies that are more powerful than strictly needed. Customize as needed for your security requirements.
 
-You'll need a way to browse and manage the provisioned EFS contents remotely. The companion [lambdash-efs](https://github.com/miniwdl-ext/lambdash-efs) is one option; the Terrafom deployment outputs the infrastructure details needed to deploy it (pick any subnet). Or, set up an instance/container mounting the EFS, to access via SSH or web app (e.g. [JupyterHub](https://jupyter.org/hub), [Cloud Commander](http://cloudcmd.io/), [VS Code server](https://github.com/cdr/code-server)).
+You'll need a way to browse & manage the remote EFS contents. The companion [lambdash-efs](https://github.com/miniwdl-ext/lambdash-efs) is one option; the Terrafom deployment outputs the infrastructure details needed to deploy it (pick any subnet). Or, set up an instance/container mounting the EFS, to access via SSH or web app (e.g. [JupyterHub](https://jupyter.org/hub), [Cloud Commander](http://cloudcmd.io/), [VS Code server](https://github.com/cdr/code-server)).
 
 ### Using [FSx for Lustre](https://aws.amazon.com/fsx/lustre/) instead of [EFS](https://aws.amazon.com/efs/)
 

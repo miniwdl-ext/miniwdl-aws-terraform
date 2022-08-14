@@ -1,6 +1,6 @@
 # miniwdl-aws-terraform/fsx
 
-This variant of the miniwdl-aws-terraform configuration deploys [FSx for Lustre](https://aws.amazon.com/fsx/lustre/) (FSxL) instead of [EFS](https://aws.amazon.com/efs/). FSxL tends to be much costlier than EFS for small- and medium-scale operations, but offers higher throughput scalability needed beyond that.
+This variant of the [miniwdl-aws-terraform](https://github.com/miniwdl-ext/miniwdl-aws-terraform) configuration deploys [FSx for Lustre](https://aws.amazon.com/fsx/lustre/) (FSxL) instead of [EFS](https://aws.amazon.com/efs/). FSxL has greater upfront costs than EFS, but offers higher throughput scalability needed for large-scale operations.
 
 Compared to the default EFS stack, the key differences here are:
 
@@ -27,7 +27,7 @@ The following *additional* [variables](variables.tf) are available:
 
 ### Next steps
 
-As with EFS, you'll soon need a way to browse and manage the remote FSx contents. FSx has fewer integrations with other AWS services like Fargate & Lambda to facilitate this. One additional option is to:
+As with EFS, you'll need a way to browse & manage the remote FSx contents. FSx has fewer integrations with other AWS services like Fargate & Lambda to facilitate this. One additional option:
 
 1. Open the security group for inbound SSH
 2. Increase the workflow compute environment minvCpus, so that an instance will run persistently
