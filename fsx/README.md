@@ -25,6 +25,12 @@ The following *additional* [variables](variables.tf) are available:
 * **lustre_GiB** filesystem capacity; set to 1200 or a multiple of 2400 (default 1200)
 * **lustre_weekly_maintenance_start_time** see [FSxL docs on WeeklyMaintenanceStartTime](https://docs.aws.amazon.com/fsx/latest/APIReference/API_UpdateFileSystemLustreConfiguration.html)
 
+Then use the `--fsx` mode of `miniwdl-aws-submit`,
+
+```
+miniwdl-aws-submit --self-test --follow --workflow-queue miniwdl-fsx-workflow --fsx
+```
+
 ### Next steps
 
 As with EFS, you'll need a way to browse & manage the remote FSx contents. FSx has fewer integrations with other AWS services like Fargate & Lambda to facilitate this. One additional option:
