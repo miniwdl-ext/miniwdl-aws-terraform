@@ -46,9 +46,9 @@ resource "aws_route_table_association" "public" {
   subnet_id      = aws_subnet.public.id
 }
 
-# Umbrella security group for Batch compute environments & EFS mount targets, allowing any traffic
-# within the VPC and outbound Internet access.
-# The ingress could be locked down to allow only FSxL traffic,
+# Umbrella security group for Batch compute environments & filesystem mount targets, allowing any
+# traffic within the VPC and outbound-only Internet access.
+# The ingress could be locked down to allow only FSxL traffic within the VPC,
 # https://docs.aws.amazon.com/fsx/latest/LustreGuide/limit-access-security-groups.html#fsx-vpc-security-groups
 resource "aws_security_group" "all" {
   name   = var.environment_tag
