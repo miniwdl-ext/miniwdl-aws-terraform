@@ -16,6 +16,7 @@ Use this [Terraform](https://www.terraform.io) configuration as a starting point
 ```
 git clone https://github.com/miniwdl-ext/miniwdl-aws-terraform.git
 cd miniwdl-aws-terraform
+terraform init
 terraform apply \
     -var='environment_tag=miniwdl' \
     -var='owner_tag=me@example.com' \
