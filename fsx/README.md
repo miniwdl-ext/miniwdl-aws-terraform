@@ -13,6 +13,7 @@ Compared to the default EFS stack, the key differences here are:
 ```
 git clone https://github.com/miniwdl-ext/miniwdl-aws-terraform.git
 cd miniwdl-aws-terraform/fsx
+terraform init
 terraform apply \
     -var='availability_zone=us-west-2a' \
     -var='environment_tag=miniwdl-fsx' \
