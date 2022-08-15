@@ -48,8 +48,8 @@ resource "aws_route_table_association" "public" {
 }
 
 # Umbrella security group for Batch compute environments & EFS mount targets, allowing any traffic
-# within the VPC and outbound (but not inbound) Internet. The ingress could be locked down to only
-# make the EFS mount targets (TCP 2049) reachable from the Batch compute environments.
+# within the VPC and outbound-only Internet access.
+# The ingress could be locked down to only allow EFS traffic (TCP 2049) within the VPC.
 resource "aws_security_group" "all" {
   name   = var.environment_tag
   vpc_id = aws_vpc.vpc.id
@@ -59,6 +59,15 @@ resource "aws_security_group" "all" {
     protocol    = "-1"
     cidr_blocks = [aws_vpc.vpc.cidr_block]
   }
+  # Uncomment to open SSH to task worker instances via EC2 Instance Connect (for troubleshooting)
+  /*
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  */
   egress {
     from_port   = 0
     to_port     = 0
@@ -106,6 +115,12 @@ resource "aws_iam_instance_profile" "task" {
 data "cloudinit_config" "task" {
   gzip = false
 
+  # enable EC2 Instance Connect for troubleshooting (if security group allows inbound SSH)
+  part {
+    content_type = "text/x-shellscript"
+    content      = "yum install -y ec2-instance-connect"
+  }
+
   part {
     content_type = "text/x-shellscript"
     content      = file("${path.module}/assets/init_docker_instance_storage.sh")
@@ -113,7 +128,8 @@ data "cloudinit_config" "task" {
 }
 
 resource "aws_launch_template" "task" {
-  name = "${var.environment_tag}-task"
+  name                   = "${var.environment_tag}-task"
+  update_default_version = true
   iam_instance_profile {
     name = aws_iam_instance_profile.task.name
   }
@@ -121,9 +137,9 @@ resource "aws_launch_template" "task" {
 }
 
 resource "aws_batch_compute_environment" "task" {
-  compute_environment_name = "${var.environment_tag}-task"
-  type                     = "MANAGED"
-  service_role             = aws_iam_role.batch.arn
+  compute_environment_name_prefix = "${var.environment_tag}-task"
+  type                            = "MANAGED"
+  service_role                    = aws_iam_role.batch.arn
 
   compute_resources {
     type                = "SPOT"
@@ -138,7 +154,12 @@ resource "aws_batch_compute_environment" "task" {
 
     launch_template {
       launch_template_id = aws_launch_template.task.id
+      version            = aws_launch_template.task.latest_version
     }
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
@@ -150,9 +171,9 @@ resource "aws_batch_job_queue" "task" {
 }
 
 resource "aws_batch_compute_environment" "workflow" {
-  compute_environment_name = "${var.environment_tag}-workflow"
-  type                     = "MANAGED"
-  service_role             = aws_iam_role.batch.arn
+  compute_environment_name_prefix = "${var.environment_tag}-workflow"
+  type                            = "MANAGED"
+  service_role                    = aws_iam_role.batch.arn
 
   compute_resources {
     type               = "FARGATE"
@@ -161,6 +182,10 @@ resource "aws_batch_compute_environment" "workflow" {
     security_group_ids = [aws_security_group.all.id]
     # With Fargate an IAM role is set in the task definition, not as part of the compute
     # environment -- see the workflow role below.
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
