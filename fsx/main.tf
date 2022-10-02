@@ -114,9 +114,9 @@ data "cloudinit_config" "all" {
     yum install -y ec2-instance-connect && grep eic_run_authorized_keys /etc/ssh/sshd_config
     # mount FSxL
     amazon-linux-extras install -y lustre2.10
-    mkdir -p /mnt/fsx
-    mount -t lustre -o noatime,flock ${aws_fsx_lustre_file_system.lustre.dns_name}@tcp:/${aws_fsx_lustre_file_system.lustre.mount_name} /mnt/fsx
-    lfs setstripe -E 1G -c 1 -E 16G -c 4 -S 16M -E -1 -c -1 -S 256M /mnt/fsx
+    mkdir -p /mnt/net
+    mount -t lustre -o noatime,flock ${aws_fsx_lustre_file_system.lustre.dns_name}@tcp:/${aws_fsx_lustre_file_system.lustre.mount_name} /mnt/net
+    lfs setstripe -E 1G -c 1 -E 16G -c 4 -S 16M -E -1 -c -1 -S 256M /mnt/net
     df -h
     # Somehow the preceding steps nondeterministically interfere with ECS agent startup. Set a cron
     # job to keep trying to start it. (We can't simply `systemctl start ecs` here, because the ecs

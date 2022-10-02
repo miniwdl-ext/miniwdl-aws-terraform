@@ -7,6 +7,7 @@ Compared to the default EFS stack, the key differences here are:
 1. FSxL and Batch compute environments are confined to one availability zone
 2. Compute environment for workflow jobs (running miniwdl itself) uses EC2 instead of Fargate
 3. Workflow and task compute environments have an additional cloud-init script that mounts FSxL
+4. FSxL capacity must be provisioned in advance, and doesn't grow automatically like EFS
 
 ### Deploy
 
