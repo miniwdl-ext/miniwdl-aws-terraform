@@ -1,3 +1,9 @@
+/**************************************************************************************************
+ * NOTICE: This configuration is an illustrative starting point for customization. For brevity,
+ * it does not implement all security best practices in networking and IAM. Customize as needed for
+ * your security requirements.
+ *************************************************************************************************/
+
 provider "aws" {
   default_tags {
     tags = {

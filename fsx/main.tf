@@ -1,3 +1,9 @@
+/**************************************************************************************************
+ * NOTICE: This configuration is an illustrative starting point for customization. For brevity,
+ * it does not implement all security best practices in networking and IAM. Customize as needed for
+ * your security requirements.
+ *************************************************************************************************/
+
 provider "aws" {
   default_tags {
     tags = {
@@ -59,7 +65,7 @@ resource "aws_security_group" "all" {
     protocol    = "-1"
     cidr_blocks = [aws_vpc.vpc.cidr_block]
   }
-  # Uncomment to open SSH access via EC2 Instance Connect
+  # Uncomment to open SSH access via EC2 Instance Connect (for troubleshooting)
   /*
   ingress {
     from_port   = 22
@@ -112,7 +118,7 @@ data "cloudinit_config" "all" {
     set -euxo pipefail
     # enable EC2 Instance Connect for troubleshooting (if security group allows inbound SSH)
     yum install -y ec2-instance-connect && grep eic_run_authorized_keys /etc/ssh/sshd_config
-    # mount FSxL
+    # mount FSxL to /mnt/net
     amazon-linux-extras install -y lustre2.10
     mkdir -p /mnt/net
     mount -t lustre -o noatime,flock ${aws_fsx_lustre_file_system.lustre.dns_name}@tcp:/${aws_fsx_lustre_file_system.lustre.mount_name} /mnt/net
