@@ -27,10 +27,10 @@ The following *additional* [variables](variables.tf) are available:
 * **lustre_GiB** filesystem capacity; set to 1200 or a multiple of 2400 (default 1200)
 * **lustre_weekly_maintenance_start_time** see [FSxL docs on WeeklyMaintenanceStartTime](https://docs.aws.amazon.com/fsx/latest/APIReference/API_UpdateFileSystemLustreConfiguration.html)
 
-Then use the `--fsx` mode of `miniwdl-aws-submit`,
+Then use the `--no-efs` mode of `miniwdl-aws-submit`,
 
 ```
-miniwdl-aws-submit --self-test --follow --workflow-queue miniwdl-fsx-workflow --fsx
+miniwdl-aws-submit --self-test --follow --workflow-queue miniwdl-fsx-workflow --no-efs
 ```
 
 ### Next steps
