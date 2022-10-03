@@ -26,12 +26,12 @@ resource "aws_vpc" "vpc" {
   enable_dns_hostnames = true
 }
 
-# For simplicity, one public subnet per availability zone. Private subnet(s) with NAT could work.
+# For simplicity: one public subnet in the desired availability zone. A private subnet with NAT
+# would work too.
 resource "aws_subnet" "public" {
-  count                   = length(data.aws_availability_zones.available.names)
   vpc_id                  = aws_vpc.vpc.id
-  cidr_block              = "10.0.${32 * count.index}.0/20"
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  cidr_block              = "10.0.0.0/20"
+  availability_zone       = var.availability_zone
   map_public_ip_on_launch = true
 }
 
@@ -48,14 +48,14 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  count          = length(aws_subnet.public)
   route_table_id = aws_route_table.public.id
-  subnet_id      = aws_subnet.public[count.index].id
+  subnet_id      = aws_subnet.public.id
 }
 
-# Umbrella security group for Batch compute environments & EFS mount targets, allowing any traffic
-# within the VPC and outbound-only Internet access.
-# The ingress could be locked down to only allow EFS traffic (TCP 2049) within the VPC.
+# Umbrella security group for Batch compute environments & filesystem mount targets, allowing any
+# traffic within the VPC and outbound-only Internet access.
+# The ingress could be locked down to allow only FSxL traffic within the VPC,
+# https://docs.aws.amazon.com/fsx/latest/LustreGuide/limit-access-security-groups.html#fsx-vpc-security-groups
 resource "aws_security_group" "all" {
   name   = var.environment_tag
   vpc_id = aws_vpc.vpc.id
@@ -65,7 +65,7 @@ resource "aws_security_group" "all" {
     protocol    = "-1"
     cidr_blocks = [aws_vpc.vpc.cidr_block]
   }
-  # Uncomment to open SSH to task worker instances via EC2 Instance Connect (for troubleshooting)
+  # Uncomment to open SSH access via EC2 Instance Connect (for troubleshooting)
   /*
   ingress {
     from_port   = 22
@@ -83,29 +83,18 @@ resource "aws_security_group" "all" {
 }
 
 /**************************************************************************************************
- * EFS
+ * FSxL
  *************************************************************************************************/
 
-resource "aws_efs_file_system" "efs" {
-  encrypted        = true
-  performance_mode = "maxIO"
+resource "aws_fsx_lustre_file_system" "lustre" {
+  subnet_ids                    = [aws_subnet.public.id]
+  security_group_ids            = [aws_security_group.all.id]
+  deployment_type               = "SCRATCH_2"
+  storage_capacity              = var.lustre_GiB
+  weekly_maintenance_start_time = var.lustre_weekly_maintenance_start_time
+
   lifecycle {
     prevent_destroy = true
-  }
-}
-
-resource "aws_efs_mount_target" "target" {
-  count           = length(aws_subnet.public)
-  file_system_id  = aws_efs_file_system.efs.id
-  subnet_id       = aws_subnet.public[count.index].id
-  security_groups = [aws_security_group.all.id]
-}
-
-resource "aws_efs_access_point" "ap" {
-  file_system_id = aws_efs_file_system.efs.id
-  posix_user {
-    uid = 0
-    gid = 0
   }
 }
 
@@ -113,24 +102,40 @@ resource "aws_efs_access_point" "ap" {
  * Batch
  *************************************************************************************************/
 
+data "cloudinit_config" "all" {
+  # user data scripts for Batch worker instances
+  gzip = false
+
+  part {
+    content_type = "text/x-shellscript"
+    content      = file("${path.module}/../assets/init_docker_instance_storage.sh")
+  }
+
+  part {
+    content_type = "text/x-shellscript"
+    content      = <<-EOT
+    #!/bin/bash
+    set -euxo pipefail
+    # enable EC2 Instance Connect for troubleshooting (if security group allows inbound SSH)
+    yum install -y ec2-instance-connect && grep eic_run_authorized_keys /etc/ssh/sshd_config
+    # mount FSxL to /mnt/net
+    amazon-linux-extras install -y lustre2.10
+    mkdir -p /mnt/net
+    mount -t lustre -o noatime,flock ${aws_fsx_lustre_file_system.lustre.dns_name}@tcp:/${aws_fsx_lustre_file_system.lustre.mount_name} /mnt/net
+    lfs setstripe -E 1G -c 1 -E 16G -c 4 -S 16M -E -1 -c -1 -S 256M /mnt/net
+    df -h
+    # Somehow the preceding steps nondeterministically interfere with ECS agent startup. Set a cron
+    # job to keep trying to start it. (We can't simply `systemctl start ecs` here, because the ecs
+    # systemd service requires cloud-init to have finished.)
+    echo "* * * * * root /usr/bin/systemctl start ecs" > /etc/cron.d/ecs-workaround
+    /usr/bin/systemctl reload crond
+    EOT
+  }
+}
+
 resource "aws_iam_instance_profile" "task" {
   name = "${var.environment_tag}-task"
   role = aws_iam_role.task.name
-}
-
-data "cloudinit_config" "task" {
-  gzip = false
-
-  # enable EC2 Instance Connect for troubleshooting (if security group allows inbound SSH)
-  part {
-    content_type = "text/x-shellscript"
-    content      = "yum install -y ec2-instance-connect"
-  }
-
-  part {
-    content_type = "text/x-shellscript"
-    content      = file("${path.module}/assets/init_docker_instance_storage.sh")
-  }
 }
 
 resource "aws_launch_template" "task" {
@@ -139,7 +144,7 @@ resource "aws_launch_template" "task" {
   iam_instance_profile {
     name = aws_iam_instance_profile.task.name
   }
-  user_data = data.cloudinit_config.task.rendered
+  user_data = data.cloudinit_config.all.rendered
 }
 
 resource "aws_batch_compute_environment" "task" {
@@ -152,11 +157,10 @@ resource "aws_batch_compute_environment" "task" {
     instance_type       = ["m5d", "c5d", "r5d"]
     allocation_strategy = "SPOT_CAPACITY_OPTIMIZED"
     max_vcpus           = var.task_max_vcpus
-    subnets             = aws_subnet.public[*].id
+    subnets             = [aws_subnet.public.id]
     security_group_ids  = [aws_security_group.all.id]
     spot_iam_fleet_role = aws_iam_role.spot_fleet.arn
     instance_role       = aws_iam_instance_profile.task.arn
-    # ^ Terraform requires instance_role even though it seems redundant with launch template
 
     launch_template {
       launch_template_id = aws_launch_template.task.id
@@ -176,18 +180,37 @@ resource "aws_batch_job_queue" "task" {
   compute_environments = [aws_batch_compute_environment.task.arn]
 }
 
+resource "aws_iam_instance_profile" "workflow" {
+  name = "${var.environment_tag}-workflow"
+  role = aws_iam_role.workflow.name
+}
+
+resource "aws_launch_template" "workflow" {
+  name                   = "${var.environment_tag}-workflow"
+  update_default_version = true
+  iam_instance_profile {
+    name = aws_iam_instance_profile.workflow.name
+  }
+  user_data = data.cloudinit_config.all.rendered
+}
+
 resource "aws_batch_compute_environment" "workflow" {
   compute_environment_name_prefix = "${var.environment_tag}-workflow"
   type                            = "MANAGED"
   service_role                    = aws_iam_role.batch.arn
 
   compute_resources {
-    type               = "FARGATE"
+    type               = "EC2"
+    instance_type      = ["m5.large"]
     max_vcpus          = var.workflow_max_vcpus
-    subnets            = aws_subnet.public[*].id
+    subnets            = [aws_subnet.public.id]
     security_group_ids = [aws_security_group.all.id]
-    # With Fargate an IAM role is set in the task definition, not as part of the compute
-    # environment -- see the workflow role below.
+    instance_role      = aws_iam_instance_profile.workflow.arn
+
+    launch_template {
+      launch_template_id = aws_launch_template.workflow.id
+      version            = aws_launch_template.workflow.latest_version
+    }
   }
 
   lifecycle {
@@ -204,9 +227,7 @@ resource "aws_batch_job_queue" "workflow" {
   # miniwdl-aws-submit only needs to be given the workflow queue name because it detects other
   # infrastructure defaults from these tags.
   tags = {
-    WorkflowEngineRoleArn = aws_iam_role.workflow.arn
-    DefaultTaskQueue      = aws_batch_job_queue.task.name
-    DefaultFsap           = aws_efs_access_point.ap.id
+    DefaultTaskQueue = aws_batch_job_queue.task.name
   }
 }
 
@@ -227,30 +248,25 @@ resource "aws_iam_role" "task" {
   # account-wide.
   managed_policy_arns = [
     "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role",
-    "arn:aws:iam::aws:policy/AmazonElasticFileSystemClientReadWriteAccess",
     "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
     "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
   ]
 }
 
-# For Batch Fargate tasks running miniwdl itself
-# This role needs to be set with the Batch job definition, not as part of the compute environment;
-# miniwdl-aws-submit detects it from the WorkflowEngineRoleArn tag on the workflow job queue, set
-# above.
+# For Batch EC2 worker instances running miniwdl itself
 resource "aws_iam_role" "workflow" {
   name = "${var.environment_tag}-workflow"
 
   assume_role_policy = <<-EOF
-  {"Statement":[{"Principal":{"Service":"ecs-tasks.amazonaws.com"},"Sid":"","Effect":"Allow","Action":"sts:AssumeRole"}],"Version":"2012-10-17"}
+  {"Statement":[{"Principal":{"Service":"ec2.amazonaws.com"},"Sid":"","Effect":"Allow","Action":"sts:AssumeRole"}],"Version":"2012-10-17"}
   EOF
 
   # The following managed policies are convenient to keep this concise, but they're more powerful
   # than strictly needed. The scopes can all be restricted to specific resources rather than
-  # account-wide; and while certain "write" permissions to Batch and EFS are needed, it's less than
+  # account-wide; and while certain "write" permissions to Batch are needed, it's less than
   # "FullAccess".
   managed_policy_arns = [
-    "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
-    "arn:aws:iam::aws:policy/AmazonElasticFileSystemClientFullAccess",
+    "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role",
     "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
     "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
     "arn:aws:iam::aws:policy/AWSBatchFullAccess",
@@ -264,10 +280,11 @@ resource "aws_iam_role" "workflow" {
       name = "${var.environment_tag}-workflow-s3upload"
       policy = jsonencode({
         Version = "2012-10-17",
-        Statement = [{
-          Effect   = "Allow",
-          Action   = ["s3:PutObject"],
-          Resource = formatlist("arn:aws:s3:::%s/*", var.s3upload_buckets),
+        Statement = [
+          {
+            Effect   = "Allow",
+            Action   = ["s3:PutObject"],
+            Resource = formatlist("arn:aws:s3:::%s/*", var.s3upload_buckets),
           },
         ],
       })

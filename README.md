@@ -2,7 +2,7 @@
 
 Use this [Terraform](https://www.terraform.io) configuration as a starting point to provision AWS infrastructure for [miniwdl-aws](https://github.com/miniwdl-ext/miniwdl-aws) -- including a VPC, EFS file system, Batch queues, and IAM roles.
 
-**Before diving into this, please review two simpler ways to use miniwdl-aws** described [there](https://github.com/miniwdl-ext/miniwdl-aws).
+**Before diving into this, please review simpler ways to use miniwdl-aws** described [there](https://github.com/miniwdl-ext/miniwdl-aws).
 
 ### Requirements
 
@@ -52,4 +52,8 @@ The following Terraform variables are also available:
 
 Review the network configuration and IAM policies in [main.tf](main.tf). To keep the configuration succinct, we wrote in simple networking with public subnets, and existing IAM policies that are more powerful than strictly needed. Customize as needed for your security requirements.
 
-You'll need a way to browse and manage the provisioned EFS contents remotely. The companion [lambdash-efs](https://github.com/miniwdl-ext/lambdash-efs) is one option; the Terrafom deployment outputs the infrastructure details needed to deploy it (pick any subnet). Or, set up an instance/container mounting the EFS, to access via SSH or web app (e.g. [JupyterHub](https://jupyter.org/hub), [Cloud Commander](http://cloudcmd.io/), [VS Code server](https://github.com/cdr/code-server)).
+You'll need a way to browse & manage the remote EFS contents. The companion [lambdash-efs](https://github.com/miniwdl-ext/lambdash-efs) is one option; the Terrafom deployment outputs the infrastructure details needed to deploy it (pick any subnet). Or, set up an instance/container mounting the EFS, to access via SSH or web app (e.g. [JupyterHub](https://jupyter.org/hub), [Cloud Commander](http://cloudcmd.io/), [VS Code server](https://github.com/cdr/code-server)).
+
+### Using [FSx for Lustre](https://aws.amazon.com/fsx/lustre/) instead of [EFS](https://aws.amazon.com/efs/)
+
+See [fsx/](fsx/) for a variant of the infrastructure configuration deploying Lustre instead of EFS. The default EFS stack is recommended to begin with, but large-scale operations may need the higher throughput offered by Lustre.
