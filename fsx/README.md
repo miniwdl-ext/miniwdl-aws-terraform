@@ -39,4 +39,4 @@ As with EFS, you'll need a way to browse & manage the remote FSx contents. FSx h
 
 1. Open the security group for inbound SSH
 2. Increase the workflow compute environment minvCpus, so that an instance will run persistently
-3. Use [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html#connect-options) to SSH into the instance and interact with `/mnt/fsx`
+3. Use [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html#connect-options) to SSH into the instance and interact with `/mnt/net`
