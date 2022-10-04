@@ -19,7 +19,8 @@ terraform apply \
     -var='availability_zone=us-west-2a' \
     -var='environment_tag=miniwdl-fsx' \
     -var='owner_tag=me@example.com' \
-    -var='s3upload_buckets=["MY-BUCKET"]'
+    -var='s3upload_buckets=["MY-BUCKET"]' \
+    -var=create_spot_service_roles=false  # (your account probably has them by now)
 ```
 
 The following *additional* [variables](variables.tf) are available:
@@ -35,8 +36,8 @@ miniwdl-aws-submit --self-test --follow --workflow-queue miniwdl-fsx-workflow --
 
 ### Next steps
 
-As with EFS, you'll need a way to browse & manage the remote FSx contents. FSx has fewer integrations with other AWS services like Fargate & Lambda to facilitate this. One additional option:
+As with EFS, you'll need a way to browse & manage the remote FSxL contents. FSxL has fewer integrations with other AWS services like Fargate & Lambda to facilitate this, so it usually involves accessing some EC2 server mounting the filesystem. A shortcut to get one:
 
-1. Open the security group for inbound SSH
+1. Open the security group for inbound SSH (by uncommenting the relevant lines in the configuration)
 2. Increase the workflow compute environment minvCpus, so that an instance will run persistently
 3. Use [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html#connect-options) to SSH into the instance and interact with `/mnt/net`
