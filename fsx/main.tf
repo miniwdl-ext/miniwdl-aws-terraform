@@ -147,6 +147,8 @@ resource "aws_launch_template" "task" {
   user_data = data.cloudinit_config.all.rendered
 }
 
+# SPOT task environment+queue
+
 resource "aws_batch_compute_environment" "task" {
   compute_environment_name_prefix = "${var.environment_tag}-task"
   type                            = "MANAGED"
@@ -180,6 +182,44 @@ resource "aws_batch_job_queue" "task" {
   compute_environments = [aws_batch_compute_environment.task.arn]
 }
 
+# EC2 On Demand fallback task environment+queue (for possible use after exhausting spot retries)
+
+resource "aws_batch_compute_environment" "task_fallback" {
+  compute_environment_name_prefix = "${var.environment_tag}-task-fallback"
+  type                            = "MANAGED"
+  service_role                    = aws_iam_role.batch.arn
+
+  compute_resources {
+    type                = "EC2"
+    instance_type       = ["m5d", "c5d", "r5d"]
+    allocation_strategy = "BEST_FIT_PROGRESSIVE"
+    max_vcpus           = var.task_max_vcpus
+    subnets             = aws_subnet.public[*].id
+    security_group_ids  = [aws_security_group.all.id]
+    spot_iam_fleet_role = aws_iam_role.spot_fleet.arn
+    instance_role       = aws_iam_instance_profile.task.arn
+    # ^ Terraform requires instance_role even though it seems redundant with launch template
+
+    launch_template {
+      launch_template_id = aws_launch_template.task.id
+      version            = aws_launch_template.task.latest_version
+    }
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_batch_job_queue" "task_fallback" {
+  name                 = "${var.environment_tag}-task-fallback"
+  state                = "ENABLED"
+  priority             = 1
+  compute_environments = [aws_batch_compute_environment.task_fallback.arn]
+}
+
+# EC2 On Demand workflow environment+queue
+
 resource "aws_iam_instance_profile" "workflow" {
   name = "${var.environment_tag}-workflow"
   role = aws_iam_role.workflow.name
@@ -200,12 +240,13 @@ resource "aws_batch_compute_environment" "workflow" {
   service_role                    = aws_iam_role.batch.arn
 
   compute_resources {
-    type               = "EC2"
-    instance_type      = ["m5.large"]
-    max_vcpus          = var.workflow_max_vcpus
-    subnets            = [aws_subnet.public.id]
-    security_group_ids = [aws_security_group.all.id]
-    instance_role      = aws_iam_instance_profile.workflow.arn
+    type                = "EC2"
+    instance_type       = ["m5.large"]
+    allocation_strategy = "BEST_FIT_PROGRESSIVE"
+    max_vcpus           = var.workflow_max_vcpus
+    subnets             = [aws_subnet.public.id]
+    security_group_ids  = [aws_security_group.all.id]
+    instance_role       = aws_iam_instance_profile.workflow.arn
 
     launch_template {
       launch_template_id = aws_launch_template.workflow.id
@@ -226,11 +267,11 @@ resource "aws_batch_job_queue" "workflow" {
 
   # miniwdl-aws-submit only needs to be given the workflow queue name because it detects other
   # infrastructure defaults from these tags.
-  tags = {
+  tags = merge({
     DefaultTaskQueue = aws_batch_job_queue.task.name
-  }
+    }, [var.enable_task_fallback ? { DefaultTaskQueueFallback = aws_batch_job_queue.task_fallback.name } : null]...
+  )
 }
-
 /**************************************************************************************************
  * IAM roles
  *************************************************************************************************/

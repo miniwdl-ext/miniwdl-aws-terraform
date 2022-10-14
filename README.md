@@ -49,6 +49,7 @@ The following Terraform variables are also available:
 
 * `task_max_vpcus=256` maximum vCPUs for the Batch compute environment used for WDL task execution
 * `workflow_max_vcpus=16` maximum vCPUs for the Batch compute environment used for miniwdl engine processes (limits maximum # of workflows running concurrently)
+* `enable_task_fallback=true` enable fallback to EC2 On Demand compute environment after a task experiences `runtime.preemptible` spot interruptions (the on-demand environment & queue are always created, but not used by default)
 
 Review the network configuration and IAM policies in [main.tf](main.tf). To keep the configuration succinct, we wrote in simple networking with public subnets, and existing IAM policies that are more powerful than strictly needed. Customize as needed for your security requirements.
 

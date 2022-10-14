@@ -30,3 +30,9 @@ variable "workflow_max_vcpus" {
   type        = number
   default     = 16
 }
+
+variable "enable_task_fallback" {
+  description = "Enable fallback to EC2 On Demand compute environment after task experiences runtime.preemptible spot interruptions"
+  type        = bool
+  default     = false
+}
