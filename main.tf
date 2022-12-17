@@ -88,7 +88,16 @@ resource "aws_security_group" "all" {
 
 resource "aws_efs_file_system" "efs" {
   encrypted        = true
-  performance_mode = "maxIO"
+  performance_mode = "generalPurpose"
+  throughput_mode  = "bursting"
+  # ^ Larger-scale workloads may need throughput_mode changed to "elastic" (not set by default due
+  #   to increased cost). If you're sure you will NOT use "elastic" throughput_mode, then you may
+  #   set performance_mode to "maxIO" to get more IOPS (but this must be set at initial filesystem
+  #   creation, and isn't compatible with elastic throughput_mode).
+  lifecycle_policy {
+    transition_to_ia                    = "AFTER_14_DAYS"
+    transition_to_primary_storage_class = "AFTER_1_ACCESS"
+  }
   lifecycle {
     prevent_destroy = true
   }
