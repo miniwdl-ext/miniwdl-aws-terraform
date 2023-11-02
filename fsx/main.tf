@@ -144,6 +144,14 @@ resource "aws_launch_template" "task" {
   iam_instance_profile {
     name = aws_iam_instance_profile.task.name
   }
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_type = "gp3"
+      volume_size = 40
+      # ^ Large docker images may need more root EBS volume space on worker instances
+    }
+  }
   user_data = data.cloudinit_config.all.rendered
 }
 
