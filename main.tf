@@ -96,6 +96,8 @@ resource "aws_efs_file_system" "efs" {
   #   creation, and isn't compatible with elastic throughput_mode).
   lifecycle_policy {
     transition_to_ia                    = "AFTER_14_DAYS"
+  }
+  lifecycle_policy {
     transition_to_primary_storage_class = "AFTER_1_ACCESS"
   }
   lifecycle {
